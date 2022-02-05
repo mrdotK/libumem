@@ -56,7 +56,7 @@ static size_t CHUNKSIZE;
 #endif
 
 static vmem_t *mmap_heap;
-
+/*delete mmap to reduce mmap times*/
 static void *
 vmem_mmap_alloc(vmem_t *src, size_t size, int vmflags)
 {
