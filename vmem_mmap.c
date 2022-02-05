@@ -76,6 +76,7 @@ vmem_mmap_free(vmem_t *src, void *addr, size_t size)
 	errno = old_errno;
 }
 
+/*will be use in future*/
 static void
 vmem_mmap_top_free(vmem_t *src, void *addr, size_t size)
 {
