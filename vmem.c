@@ -1730,7 +1730,11 @@ vmem_init(const char *parent_name, size_t parent_quantum,
 	}
 
 	heap = vmem_create(heap_name,
-	    heap_start, heap_size, heap_quantum,
+#if !defined(MAP_ALIGN) && !defined(_WIN32)
+		heap_start, heap_size, parent_quantum,
+#else
+		heap_start, heap_size, heap_quantum,
+#endif
 	    parent_alloc, parent_free, parent, 0,
 	    VM_SLEEP | VMC_POPULATOR);
 
@@ -1738,14 +1742,24 @@ vmem_init(const char *parent_name, size_t parent_quantum,
 	vmem_heap_alloc = heap_alloc;
 	vmem_heap_free = heap_free;
 
+
 	vmem_internal_arena = vmem_create("vmem_internal",
-	    NULL, 0, heap_quantum,
+#if !defined(MAP_ALIGN) && !defined(_WIN32)
+		NULL, 0, parent_quantum,
+#else
+		NULL, 0, heap_quantum,
+#endif
 	    heap_alloc, heap_free, heap, 0,
 	    VM_SLEEP | VMC_POPULATOR);
 
 	vmem_seg_arena = vmem_create("vmem_seg",
+#if !defined(MAP_ALIGN) && !defined(_WIN32)
+	    NULL, 0, parent_quantum,
+	    heap_alloc, heap_free, heap, 0,
+#else
 	    NULL, 0, heap_quantum,
 	    vmem_alloc, vmem_free, vmem_internal_arena, 0,
+#endif
 	    VM_SLEEP | VMC_POPULATOR);
 
 	vmem_hash_arena = vmem_create("vmem_hash",
