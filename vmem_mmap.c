@@ -64,19 +64,6 @@ vmem_mmap_alloc(vmem_t *src, size_t size, int vmflags)
 	int old_errno = errno;
 
 	ret = vmem_alloc(src, size, vmflags);
-#ifndef _WIN32
-	if (ret != NULL &&
-	    mmap(ret, size, ALLOC_PROT, ALLOC_FLAGS | MAP_FIXED, -1, 0) ==
-	    MAP_FAILED) {
-		vmem_free(src, ret, size);
-		vmem_reap();
-
-		ASSERT((vmflags & VM_NOSLEEP) == VM_NOSLEEP);
-		errno = old_errno;
-		return (NULL);
-	}
-#endif
-
 	errno = old_errno;
 	return (ret);
 }
@@ -85,11 +72,6 @@ static void
 vmem_mmap_free(vmem_t *src, void *addr, size_t size)
 {
 	int old_errno = errno;
-#ifdef _WIN32
-	VirtualFree(addr, size, MEM_RELEASE);
-#else
-	(void) mmap(addr, size, FREE_PROT, FREE_FLAGS | MAP_FIXED, -1, 0);
-#endif
 	vmem_free(src, addr, size);
 	errno = old_errno;
 }
