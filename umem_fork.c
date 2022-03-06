@@ -110,6 +110,7 @@ umem_lockup(void)
 	(void) mutex_lock(&umem_cache_lock);
 	(void) mutex_lock(&umem_update_lock);
 	(void) mutex_lock(&umem_flags_lock);
+	(void) mutex_lock(&umem_trigreap_lock);
 
 	umem_lockup_cache(&umem_null_cache);
 	for (cp = umem_null_cache.cache_prev; cp != &umem_null_cache;
@@ -189,6 +190,7 @@ umem_do_release(int as_child)
 		umem_release_cache(cp);
 	umem_release_cache(&umem_null_cache);
 
+	(void) mutex_unlock(&umem_trigreap_lock);
 	(void) mutex_unlock(&umem_flags_lock);
 	(void) mutex_unlock(&umem_update_lock);
 	(void) mutex_unlock(&umem_cache_lock);

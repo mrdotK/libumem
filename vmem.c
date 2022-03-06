@@ -1826,3 +1826,24 @@ vmem_release(void)
 	(void) mutex_unlock(&vmem_segfree_lock);
 	(void) mutex_unlock(&vmem_list_lock);
 }
+
+void vmem_memory_stats(){
+    vmem_t *cur;
+    vmem_kstat_t* vm_kstat;
+    uint64_t vk_remain;
+
+    printf("name               inuse        total        import       alloc        free        active\n");
+    (void)mutex_lock(&vmem_list_lock);
+    for (cur = vmem_list; cur != NULL; cur = cur->vm_next){
+        (void) mutex_lock(&cur->vm_lock);
+        vm_kstat = &cur->vm_kstat;
+        vk_remain = vm_kstat->vk_alloc - vm_kstat->vk_free;
+        printf("%-18s %-12lu %-12lu %-12lu %-12lu %-12lu %-12lu\n",
+            cur->vm_name, vm_kstat->vk_mem_inuse, vm_kstat->vk_mem_total, vm_kstat->vk_mem_import,
+            vm_kstat->vk_alloc, vm_kstat->vk_free, vk_remain);
+        (void) mutex_unlock(&cur->vm_lock);
+    }
+    (void)mutex_unlock(&vmem_list_lock);
+    return;
+}
+

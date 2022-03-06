@@ -66,6 +66,11 @@ extern mutex_t umem_flags_lock;
 
 extern mutex_t umem_update_lock;
 extern cond_t umem_update_cv;
+
+extern mutex_t umem_trigreap_lock;
+extern cond_t umem_trigreap_cv;
+extern unsigned int umem_trigreap;
+
 extern volatile thread_t umem_st_update_thr;
 extern thread_t umem_update_thr;
 extern struct timeval	umem_update_next;
@@ -133,6 +138,7 @@ extern void umem_forkhandler_init(void);
  * umem_update_thread.c
  */
 extern int umem_create_update_thread(void);
+extern int umem_create_trigreap_thread(void);
 
 /*
  * envvar.c:

@@ -80,6 +80,8 @@ extern void *umem_cache_alloc(umem_cache_t *, int);
 extern void umem_cache_free(umem_cache_t *, void *);
 
 extern void umem_reap(void);
+extern void umem_trig_reapmem_start();
+extern void umem_trig_reapmem_stop();
 
 #ifdef	__cplusplus
 }

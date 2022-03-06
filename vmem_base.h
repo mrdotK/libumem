@@ -81,7 +81,7 @@ extern void vmem_sbrk_lockup(void);
 extern void vmem_sbrk_release(void);
 
 extern void vmem_no_debug(void);
-
+extern void vmem_memory_stats(void);
 #ifdef	__cplusplus
 }
 #endif

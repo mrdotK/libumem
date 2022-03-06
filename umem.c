@@ -594,6 +594,10 @@ volatile thread_t       umem_st_update_thr;     /* only used when single-thd */
 mutex_t                 umem_update_lock = DEFAULTMUTEX;        /* cache_u{next,prev,flags} */
 cond_t                  umem_update_cv = DEFAULTCV;
 
+mutex_t                 umem_trigreap_lock = DEFAULTMUTEX;        /* reap memory */
+cond_t                  umem_trigreap_cv = DEFAULTCV;
+unsigned int            umem_trigreap = 0;
+
 volatile hrtime_t umem_reap_next;       /* min hrtime of next reap */
 
 mutex_t                 umem_cache_lock = DEFAULTMUTEX; /* inter-cache linkage only */
@@ -2229,10 +2233,13 @@ umem_cache_magazine_enable(umem_cache_t *cp)
 static void
 umem_cache_magazine_resize(umem_cache_t *cp)
 {
+#if 0
         umem_magtype_t *mtp = cp->cache_magtype;
-
+#endif
         ASSERT(IN_UPDATE());
-
+        umem_cache_magazine_purge(cp);
+		umem_cache_magazine_enable(cp);
+#if 0
         if (cp->cache_chunksize < mtp->mt_maxbuf) {
                 umem_cache_magazine_purge(cp);
                 (void) mutex_lock(&cp->cache_depot_lock);
@@ -2242,6 +2249,7 @@ umem_cache_magazine_resize(umem_cache_t *cp)
                 (void) mutex_unlock(&cp->cache_depot_lock);
                 umem_cache_magazine_enable(cp);
         }
+#endif 
 }
 
 /*
@@ -2425,6 +2433,34 @@ umem_st_update(void)
 }
 #endif
 
+/* 
+ * Reclaim all unused memory from all caches. This just requests a reap on all caches, and notifies the umemtrig thread.
+ * reap is 1, which means to wake up umemtrig thread, otherwise it means to stop releasing memory
+ */
+static void umem_trig_mem_reap (int reap){
+    (void)mutex_lock(&umem_trigreap_lock);
+    umem_trigreap = reap;
+    (void)mutex_unlock(&umem_trigreap_lock);
+
+    if (reap){
+        (void)cond_broadcast(&umem_trigreap_cv);
+    }
+}
+
+/*
+ * Reclaim all unused memory from all caches.  Called from business when memory gets tight.  
+ */
+void umem_trig_reapmem_start(){
+    umem_trig_mem_reap(1);
+}
+
+/*
+ * Stop reclaiming memory. Called from business when enough memory is available  
+ */
+void umem_trig_reapmem_stop(){
+    umem_trig_mem_reap(0);
+}
+
 /*
  * Reclaim all unused memory from all caches.  Called from vmem when memory
  * gets tight.  Must be called with no locks held.
@@ -2452,7 +2488,7 @@ umem_reap(void)
 
         (void) mutex_unlock(&umem_update_lock);
 
-        umem_updateall(UMU_REAP);
+        umem_updateall(UMU_REAP | UMU_MAGAZINE_RESIZE);
 
         (void) mutex_lock(&umem_update_lock);
 
@@ -3166,6 +3202,7 @@ umem_init(void)
 
                 umem_ready = UMEM_READY_INITING;
                 umem_init_thr = thr_self();
+                (void) umem_create_trigreap_thread();
 
                 (void) mutex_unlock(&umem_init_lock);
                 umem_setup_envvars(0);          /* can recurse -- see below */

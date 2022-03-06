@@ -31,9 +31,11 @@
 #include "config.h"
 #include "umem_base.h"
 #include "vmem_base.h"
-
+#include <unistd.h>
 #include <signal.h>
-
+pthread_t umem_trigreap_thr = 0;
+unsigned long umem_trigreap_times = 0;
+unsigned long umem_trigreap_total = 0;
 struct umem_suspend_signal_object {
 	/* locked by creating thread; unlocked when umem_update_thread
 	 * can proceed */
@@ -46,6 +48,65 @@ struct umem_suspend_signal_object {
 	pthread_cond_t cond;
 	int flag;
 };
+
+static THR_RETURN
+THR_API umem_trigreap_thread(void *arg){
+    struct timeval now;
+    timespec_t abs_time;
+    sigset_t sigmask,oldmask;
+    int cancel_state;
+
+    /*The umemtrig thread handles no signals*/
+    (void) sigfillset(&sigmask);
+    (void) pthread_sigmask(SIG_BLOCK, &sigmask, &oldmask);
+
+    (void) mutex_lock(&umem_trigreap_lock);
+	for (;;) {
+        if (umem_trigreap){
+            (void)mutex_unlock(&umem_trigreap_lock);
+            vmem_reap();
+            umem_trigreap_total++;
+
+            /*Suppress the problem of high cpu utilization caused by frequent reap memory*/
+            if (umem_trigreap_times++ > 30){
+                sleep(10);
+            }else{
+                sleep(1);
+            }
+            (void)mutex_lock(&umem_trigreap_lock);
+        }else{
+            (void)gettimeofday(&now, NULL);
+            abs_time.tv_sec = now.tv_sec + 2*umem_reap_interval;
+            abs_time.tv_nsec = now.tv_usec * 1000;
+
+            (void) pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &cancel_state);
+            (void) cond_timedwait(&umem_trigreap_cv,&umem_trigreap_lock, &abs_time);
+            (void) pthread_setcancelstate(cancel_state, NULL);
+            umem_trigreap_times = 0;
+        }
+    }
+}
+
+int umem_create_trigreap_thread(void){
+    pthread_t newthr;
+    pthread_attr_t attr;
+    int ret;
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    if (umem_trigreap_thr){
+        return -1;
+    }
+    ret = pthread_create(&newthr, &attr, umem_trigreap_thread, NULL);
+    if (0 == ret){
+        umem_trigreap_thr = newthr;
+    }else{
+        umem_trigreap_thr = 0;
+    }
+    return 0;
+}
+
 
 /*ARGSUSED*/
 static THR_RETURN
