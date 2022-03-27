@@ -492,15 +492,15 @@ static int umem_alloc_sizes[] = {
 #define NUM_ALLOC_SIZES (sizeof (umem_alloc_sizes) / sizeof (*umem_alloc_sizes))
 
 static umem_magtype_t umem_magtype[] = {
-        { 1,    8,      3200,   65536   },
-        { 3,    16,     256,    32768   },
-        { 7,    32,     64,     16384   },
-        { 15,   64,     0,      8192    },
-        { 31,   64,     0,      4096    },
-        { 47,   64,     0,      2048    },
-        { 63,   64,     0,      1024    },
-        { 95,   64,     0,      512     },
-        { 143,  64,     0,      0       },
+        { 143,  64,     1024,      0},
+        { 95,   64,     2048,      0},          
+        { 63,   64,     4096,      0}, 
+        { 47,   64,     8192,      0},
+        { 31,   64,     16384,     0},
+        { 15,   32,     32768,     0},
+        { 7,    16,     262144,    0},
+        { 3,    8,      1048576,   0},
+        { 1,    8,      ~0L,       0},
 };
 
 /*
@@ -2532,7 +2532,7 @@ umem_cache_create(
         umem_magtype_t *mtp;
         size_t csize;
         size_t phase;
-
+        int i;
         /*
          * The init thread is allowed to create internal and quantum caches.
          *
@@ -2785,8 +2785,13 @@ umem_cache_create(
          */
         (void) mutex_init(&cp->cache_depot_lock, USYNC_THREAD, NULL);
 
-        for (mtp = umem_magtype; chunksize <= mtp->mt_minbuf; mtp++)
-                continue;
+        mtp = umem_magtype;
+        for (i = 0; i <= sizeof(umem_magtype)/sizeof(*mtp); i++){
+            if (chunksize < umem_magtype[i].mt_minbuf){
+                mtp = &umem_magtype[i];
+                break;
+            }
+        }
 
         cp->cache_magtype = mtp;
 
@@ -2970,7 +2975,7 @@ umem_cache_init(void)
                 mtp->mt_cache = umem_cache_create(name,
                     (mtp->mt_magsize + 1) * sizeof (void *),
                     mtp->mt_align, NULL, NULL, NULL, NULL,
-                    umem_internal_arena, UMC_NOHASH | UMC_INTERNAL);
+                    umem_internal_arena, UMC_NOHASH | UMC_INTERNAL | UMC_NOMAGAZINE);
                 if (mtp->mt_cache == NULL)
                         return (0);
         }
